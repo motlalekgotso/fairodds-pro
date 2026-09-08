@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/betting/store";
+import { importOddsFromScreenshot } from "@/lib/betting/import-odds.functions";
 import type { MarketKey, Match, RetailBook } from "@/lib/betting/types";
+
 
 export const Route = createFileRoute("/add")({
   head: () => ({
@@ -107,6 +110,73 @@ function AddMatch() {
     { name: "", odds: {} },
   ]);
   const [notes, setNotes] = useState("");
+  const [reading, setReading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const runImport = useServerFn(importOddsFromScreenshot);
+
+  function toForm(odds: Partial<Record<MarketKey, number>>): OddsForm {
+    const out: OddsForm = {};
+    for (const { key } of ODDS_FIELDS) {
+      const v = odds[key];
+      if (typeof v === "number") out[key] = String(v);
+    }
+    return out;
+  }
+
+  async function handleImage(file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("That file isn't an image");
+      return;
+    }
+    if (file.size > 8_000_000) {
+      toast.error("Image is too large (max 8MB)");
+      return;
+    }
+    setReading(true);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error("Could not read that file"));
+        r.readAsDataURL(file);
+      });
+      const result = await runImport({ data: { imageDataUrl: dataUrl } });
+      if (result.home_team) setHome(result.home_team);
+      if (result.away_team) setAway(result.away_team);
+      if (result.league) setLeague(result.league);
+      if (Object.keys(result.pinnacle).length) setPinnacle(toForm(result.pinnacle));
+      if (result.books.length) {
+        setBooks(result.books.map((b) => ({ name: b.book_name, odds: toForm(b.odds) })));
+      }
+      if (result.notes) setNotes((n) => (n ? n : result.notes));
+      const found =
+        Object.keys(result.pinnacle).length +
+        result.books.reduce((a, b) => a + Object.keys(b.odds).length, 0);
+      if (found === 0) {
+        toast.error("No odds were readable in that screenshot");
+      } else {
+        toast.success(`Read ${found} prices — check them before analysing`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not read that screenshot");
+    } finally {
+      setReading(false);
+    }
+  }
+
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const item = Array.from(e.clipboardData?.items ?? []).find((i) =>
+        i.type.startsWith("image/"),
+      );
+      const file = item?.getAsFile();
+      if (file) void handleImage(file);
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -149,6 +219,47 @@ function AddMatch() {
           for +EV.
         </p>
       </div>
+
+      <Section
+        title="Import from screenshot"
+        hint="Drop a screenshot of an odds page — teams and prices are filled in for you to check."
+      >
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files[0];
+            if (f) void handleImage(f);
+          }}
+          className="flex flex-col items-start gap-3 rounded-md border border-dashed border-edge p-6"
+        >
+          <p className="text-sm text-muted-foreground">
+            {reading
+              ? "Reading the screenshot…"
+              : "Drag an image here, paste with Ctrl+V, or choose a file."}
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImage(f);
+              e.target.value = "";
+            }}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={reading}
+            onClick={() => fileRef.current?.click()}
+          >
+            {reading ? "Reading…" : "Choose screenshot"}
+          </Button>
+        </div>
+      </Section>
+
 
       <Section title="Fixture">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
