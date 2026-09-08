@@ -51,7 +51,7 @@ export function devig(odds: Partial<Record<MarketKey, number>>) {
     const implied = present.map((k) => 1 / (odds[k] as number));
     const overround = implied.reduce((a, b) => a + b, 0);
     present.forEach((k, i) => {
-      fair[k] = implied[i] / overround;
+      fair[k] = (implied[i] as number) / overround;
     });
   }
   return fair;
@@ -79,8 +79,10 @@ export function correlatedPairs(legs: Leg[]) {
   const pairs: [Leg, Leg][] = [];
   for (let i = 0; i < legs.length; i++) {
     for (let j = i + 1; j < legs.length; j++) {
-      if (legs[i].match_id === legs[j].match_id && isCorrelated(legs[i].key, legs[j].key)) {
-        pairs.push([legs[i], legs[j]]);
+      const a = legs[i] as Leg;
+      const b = legs[j] as Leg;
+      if (a.match_id === b.match_id && isCorrelated(a.key, b.key)) {
+        pairs.push([a, b]);
       }
     }
   }
