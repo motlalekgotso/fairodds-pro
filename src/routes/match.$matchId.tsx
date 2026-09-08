@@ -98,7 +98,7 @@ function MatchView() {
     },
   ];
 
-  const ordered = highProbMode ? cards : [cards[2], cards[1], cards[0]];
+  const ordered = highProbMode ? cards : [...cards].reverse();
 
   return (
     <div className="space-y-6">
