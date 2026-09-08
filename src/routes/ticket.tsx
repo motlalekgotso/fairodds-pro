@@ -23,7 +23,7 @@ export const Route = createFileRoute("/ticket")({
       },
     ],
   }),
-  component: TicketBuilder;
+  component: TicketBuilder,
 });
 
 function TicketBuilder() {
