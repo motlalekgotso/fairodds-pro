@@ -243,31 +243,32 @@ function AddMatch() {
       </div>
 
       <Section
-        title="Import from screenshot"
-        hint="Drop a screenshot of an odds page — teams and prices are filled in for you to check."
+        title="Import from screenshots"
+        hint="Drop one or more screenshots of an odds page — teams and prices are filled in for you to check."
       >
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
-            const f = e.dataTransfer.files[0];
-            if (f) void handleImage(f);
+            const fs = Array.from(e.dataTransfer.files);
+            if (fs.length) void handleImages(fs);
           }}
           className="flex flex-col items-start gap-3 rounded-md border border-dashed border-edge p-6"
         >
           <p className="text-sm text-muted-foreground">
             {reading
-              ? "Reading the screenshot…"
-              : "Drag an image here, paste with Ctrl+V, or choose a file."}
+              ? "Reading the screenshots…"
+              : "Drag images here, paste with Ctrl+V, or choose files. Several screenshots of the same match get merged."}
           </p>
           <input
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             className="hidden"
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handleImage(f);
+              const fs = Array.from(e.target.files ?? []);
+              if (fs.length) void handleImages(fs);
               e.target.value = "";
             }}
           />
@@ -277,10 +278,11 @@ function AddMatch() {
             disabled={reading}
             onClick={() => fileRef.current?.click()}
           >
-            {reading ? "Reading…" : "Choose screenshot"}
+            {reading ? "Reading…" : "Choose screenshots"}
           </Button>
         </div>
       </Section>
+
 
 
       <Section title="Fixture">
