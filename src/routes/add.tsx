@@ -123,37 +123,58 @@ function AddMatch() {
     return out;
   }
 
-  async function handleImage(file: File) {
-    if (!file.type.startsWith("image/")) {
-      toast.error("That file isn't an image");
+  async function handleImages(input: File[]) {
+    const files = input.filter((f) => f.type.startsWith("image/"));
+    if (!files.length) {
+      toast.error("Those files aren't images");
       return;
     }
-    if (file.size > 8_000_000) {
-      toast.error("Image is too large (max 8MB)");
+    if (files.some((f) => f.size > 8_000_000)) {
+      toast.error("Each image must be under 8MB");
       return;
     }
     setReading(true);
+    let found = 0;
     try {
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result));
-        r.onerror = () => reject(new Error("Could not read that file"));
-        r.readAsDataURL(file);
-      });
-      const result = await runImport({ data: { imageDataUrl: dataUrl } });
-      if (result.home_team) setHome(result.home_team);
-      if (result.away_team) setAway(result.away_team);
-      if (result.league) setLeague(result.league);
-      if (Object.keys(result.pinnacle).length) setPinnacle(toForm(result.pinnacle));
-      if (result.books.length) {
-        setBooks(result.books.map((b) => ({ name: b.book_name, odds: toForm(b.odds) })));
+      for (const file of files) {
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.onerror = () => reject(new Error("Could not read that file"));
+          r.readAsDataURL(file);
+        });
+        const result = await runImport({ data: { imageDataUrl: dataUrl } });
+        if (result.home_team) setHome((v) => v || result.home_team);
+        if (result.away_team) setAway((v) => v || result.away_team);
+        if (result.league) setLeague((v) => v || result.league);
+        if (Object.keys(result.pinnacle).length) {
+          setPinnacle((s) => ({ ...toForm(result.pinnacle), ...s }));
+        }
+        if (result.books.length) {
+          setBooks((s) => {
+            const next = s.filter((b) => b.name.trim() || Object.keys(b.odds).length);
+            for (const b of result.books) {
+              const i = next.findIndex(
+                (x) => x.name.trim().toLowerCase() === b.book_name.trim().toLowerCase(),
+              );
+              const odds = toForm(b.odds);
+              if (i >= 0) {
+                const prev = next[i]!;
+                next[i] = { ...prev, odds: { ...odds, ...prev.odds } };
+              } else {
+                next.push({ name: b.book_name, odds });
+              }
+            }
+            return next.length ? next : [{ name: "", odds: {} }];
+          });
+        }
+        if (result.notes) setNotes((n) => n || result.notes);
+        found +=
+          Object.keys(result.pinnacle).length +
+          result.books.reduce((a, b) => a + Object.keys(b.odds).length, 0);
       }
-      if (result.notes) setNotes((n) => (n ? n : result.notes));
-      const found =
-        Object.keys(result.pinnacle).length +
-        result.books.reduce((a, b) => a + Object.keys(b.odds).length, 0);
       if (found === 0) {
-        toast.error("No odds were readable in that screenshot");
+        toast.error("No odds were readable in those screenshots");
       } else {
         toast.success(`Read ${found} prices — check them before analysing`);
       }
@@ -166,16 +187,17 @@ function AddMatch() {
 
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
-      const item = Array.from(e.clipboardData?.items ?? []).find((i) =>
-        i.type.startsWith("image/"),
-      );
-      const file = item?.getAsFile();
-      if (file) void handleImage(file);
+      const files = Array.from(e.clipboardData?.items ?? [])
+        .filter((i) => i.type.startsWith("image/"))
+        .map((i) => i.getAsFile())
+        .filter((f): f is File => !!f);
+      if (files.length) void handleImages(files);
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
 
   function submit(e: React.FormEvent) {
