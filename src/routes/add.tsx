@@ -96,6 +96,55 @@ function Section({
   );
 }
 
+function Dropzone({
+  busy,
+  idle,
+  busyLabel,
+  buttonLabel,
+  onFiles,
+}: {
+  busy: boolean;
+  idle: string;
+  busyLabel: string;
+  buttonLabel: string;
+  onFiles: (files: File[]) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        const fs = Array.from(e.dataTransfer.files);
+        if (fs.length) onFiles(fs);
+      }}
+      className="flex flex-col items-start gap-3 rounded-md border border-dashed border-edge p-6"
+    >
+      <p className="text-sm text-muted-foreground">{busy ? busyLabel : idle}</p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const fs = Array.from(e.target.files ?? []);
+          if (fs.length) onFiles(fs);
+          e.target.value = "";
+        }}
+      />
+      <Button
+        type="button"
+        variant="secondary"
+        disabled={busy}
+        onClick={() => fileRef.current?.click()}
+      >
+        {busy ? "Reading…" : buttonLabel}
+      </Button>
+    </div>
+  );
+}
+
 function AddMatch() {
   const { addMatch } = useStore();
   const navigate = useNavigate();
