@@ -455,12 +455,21 @@ function AddMatch() {
         title="Stats notes"
         hint="Form, injuries, head-to-head. Leaving this empty raises the risk score."
       >
-        <Textarea
-          rows={4}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Paste form / xG / injury notes from FBref or Understat…"
-        />
+        <div className="space-y-4">
+          <Dropzone
+            busy={readingStats}
+            busyLabel="Reading the stats screenshots…"
+            idle="Drop form, xG, head-to-head or injury screenshots here and they'll be summarised into your notes."
+            buttonLabel="Choose stats screenshots"
+            onFiles={(fs) => void handleStatsImages(fs)}
+          />
+          <Textarea
+            rows={6}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Paste form / xG / injury notes from FBref or Understat…"
+          />
+        </div>
       </Section>
 
       <Button type="submit" size="lg">
