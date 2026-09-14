@@ -37,10 +37,31 @@ function NotFoundComponent() {
   );
 }
 
+const RELOAD_KEY = "chunk-reload-at";
+
+function isStaleChunkError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    /Failed to fetch dynamically imported module/i.test(message) ||
+    /error loading dynamically imported module/i.test(message) ||
+    /Importing a module script failed/i.test(message)
+  );
+}
+
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
+    // A new deploy replaces hashed chunk files; an open tab still asks for the
+    // old name and gets a 404. Reload once to pick up the fresh build.
+    if (isStaleChunkError(error) && typeof window !== "undefined") {
+      const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
+      if (Date.now() - last > 10_000) {
+        sessionStorage.setItem(RELOAD_KEY, String(Date.now()));
+        window.location.reload();
+        return;
+      }
+    }
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
