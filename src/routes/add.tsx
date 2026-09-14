@@ -174,55 +174,78 @@ function AddMatch() {
     return out;
   }
 
-  async function handleImages(input: File[]) {
+  function validImages(input: File[]) {
     const files = input.filter((f) => f.type.startsWith("image/"));
     if (!files.length) {
       toast.error("Those files aren't images");
-      return;
+      return null;
     }
     if (files.some((f) => f.size > 8_000_000)) {
       toast.error("Each image must be under 8MB");
-      return;
+      return null;
     }
-    setReading(true);
+    return files;
+  }
+
+  function readDataUrl(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(new Error("Could not read that file"));
+      r.readAsDataURL(file);
+    });
+  }
+
+  function mergeBooks(imported: { book_name: string; odds: Partial<Record<MarketKey, number>> }[]) {
+    setBooks((s) => {
+      const next = s.filter((b) => b.name.trim() || Object.keys(b.odds).length);
+      for (const b of imported) {
+        const i = next.findIndex(
+          (x) => x.name.trim().toLowerCase() === b.book_name.trim().toLowerCase(),
+        );
+        const odds = toForm(b.odds);
+        if (i >= 0) {
+          const prev = next[i]!;
+          next[i] = { ...prev, odds: { ...odds, ...prev.odds } };
+        } else {
+          next.push({ name: b.book_name, odds });
+        }
+      }
+      return next.length ? next : [{ name: "", odds: {} }];
+    });
+  }
+
+  async function handleImages(input: File[], mode: "all" | "books" = "all") {
+    const files = validImages(input);
+    if (!files) return;
+    const setBusy = mode === "books" ? setReadingBooks : setReading;
+    setBusy(true);
     let found = 0;
     try {
       for (const file of files) {
-        const dataUrl: string = await new Promise((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(String(r.result));
-          r.onerror = () => reject(new Error("Could not read that file"));
-          r.readAsDataURL(file);
-        });
+        const dataUrl = await readDataUrl(file);
         const result = await runImport({ data: { imageDataUrl: dataUrl } });
-        if (result.home_team) setHome((v) => v || result.home_team);
-        if (result.away_team) setAway((v) => v || result.away_team);
-        if (result.league) setLeague((v) => v || result.league);
-        if (Object.keys(result.pinnacle).length) {
-          setPinnacle((s) => ({ ...toForm(result.pinnacle), ...s }));
+        const extraBooks =
+          mode === "books" && Object.keys(result.pinnacle).length
+            ? [{ book_name: "Pinnacle", odds: result.pinnacle }]
+            : [];
+
+        if (mode === "all") {
+          if (result.home_team) setHome((v) => v || result.home_team);
+          if (result.away_team) setAway((v) => v || result.away_team);
+          if (result.league) setLeague((v) => v || result.league);
+          if (Object.keys(result.pinnacle).length) {
+            setPinnacle((s) => ({ ...toForm(result.pinnacle), ...s }));
+          }
+          if (result.notes) setNotes((n) => n || result.notes);
         }
-        if (result.books.length) {
-          setBooks((s) => {
-            const next = s.filter((b) => b.name.trim() || Object.keys(b.odds).length);
-            for (const b of result.books) {
-              const i = next.findIndex(
-                (x) => x.name.trim().toLowerCase() === b.book_name.trim().toLowerCase(),
-              );
-              const odds = toForm(b.odds);
-              if (i >= 0) {
-                const prev = next[i]!;
-                next[i] = { ...prev, odds: { ...odds, ...prev.odds } };
-              } else {
-                next.push({ name: b.book_name, odds });
-              }
-            }
-            return next.length ? next : [{ name: "", odds: {} }];
-          });
-        }
-        if (result.notes) setNotes((n) => n || result.notes);
+
+        const allBooks = [...result.books, ...extraBooks];
+        if (allBooks.length) mergeBooks(allBooks);
+
         found +=
-          Object.keys(result.pinnacle).length +
-          result.books.reduce((a, b) => a + Object.keys(b.odds).length, 0);
+          (mode === "all" ? Object.keys(result.pinnacle).length : 0) +
+          allBooks.reduce((a, b) => a + Object.keys(b.odds).length, 0);
       }
       if (found === 0) {
         toast.error("No odds were readable in those screenshots");
@@ -232,7 +255,31 @@ function AddMatch() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not read that screenshot");
     } finally {
-      setReading(false);
+      setBusy(false);
+    }
+  }
+
+  async function handleStatsImages(input: File[]) {
+    const files = validImages(input);
+    if (!files) return;
+    setReadingStats(true);
+    const chunks: string[] = [];
+    try {
+      for (const file of files) {
+        const dataUrl = await readDataUrl(file);
+        const result = await runStats({ data: { imageDataUrl: dataUrl } });
+        if (result.notes) chunks.push(result.notes);
+      }
+      if (!chunks.length) {
+        toast.error("No stats were readable in those screenshots");
+        return;
+      }
+      setNotes((n) => [n.trim(), ...chunks].filter(Boolean).join("\n\n"));
+      toast.success("Stats added to your notes — check them before analysing");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not read that screenshot");
+    } finally {
+      setReadingStats(false);
     }
   }
 
