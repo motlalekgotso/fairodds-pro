@@ -13,6 +13,28 @@ export interface RetailBook extends Partial<OddsSet> {
   book_name: string;
 }
 
+export interface LineupPlayer {
+  name: string;
+  position?: string;
+  minutes?: number;
+  goals?: number;
+  assists?: number;
+  xg?: number;
+  xa?: number;
+  rating?: number;
+}
+
+export interface TeamLineup {
+  team: string;
+  formation?: string;
+  players: LineupPlayer[];
+}
+
+export interface Lineups {
+  home: TeamLineup;
+  away: TeamLineup;
+}
+
 export interface Match {
   id: string;
   home_team: string;
@@ -23,6 +45,7 @@ export interface Match {
   opening_odds?: Partial<OddsSet>;
   retail_odds: RetailBook[];
   stats_notes: string;
+  lineups?: Lineups | null;
   created_at: string;
 }
 
