@@ -399,6 +399,13 @@ function AddMatch() {
 
       <Section title="Retail books" hint="Where you'd actually place the bet.">
         <div className="space-y-5">
+          <Dropzone
+            busy={readingBooks}
+            busyLabel="Reading the comparison screenshots…"
+            idle="Drop odds-comparison screenshots here to fill the book rows below."
+            buttonLabel="Choose comparison screenshots"
+            onFiles={(fs) => void handleImages(fs, "books")}
+          />
           {books.map((b, i) => (
             <div key={i} className="space-y-3 border-l-2 border-edge pl-4">
               <div className="flex items-end gap-3">
