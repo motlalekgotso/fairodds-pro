@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/betting/store";
 import { importOddsFromScreenshot } from "@/lib/betting/import-odds.functions";
+import { importStatsFromScreenshot } from "@/lib/betting/import-stats.functions";
 import type { MarketKey, Match, RetailBook } from "@/lib/betting/types";
 
 
