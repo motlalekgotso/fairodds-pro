@@ -160,8 +160,10 @@ function AddMatch() {
   ]);
   const [notes, setNotes] = useState("");
   const [reading, setReading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [readingBooks, setReadingBooks] = useState(false);
+  const [readingStats, setReadingStats] = useState(false);
   const runImport = useServerFn(importOddsFromScreenshot);
+  const runStats = useServerFn(importStatsFromScreenshot);
 
   function toForm(odds: Partial<Record<MarketKey, number>>): OddsForm {
     const out: OddsForm = {};
