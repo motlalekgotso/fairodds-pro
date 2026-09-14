@@ -344,41 +344,13 @@ function AddMatch() {
         title="Import from screenshots"
         hint="Drop one or more screenshots of an odds page — teams and prices are filled in for you to check."
       >
-        <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            const fs = Array.from(e.dataTransfer.files);
-            if (fs.length) void handleImages(fs);
-          }}
-          className="flex flex-col items-start gap-3 rounded-md border border-dashed border-edge p-6"
-        >
-          <p className="text-sm text-muted-foreground">
-            {reading
-              ? "Reading the screenshots…"
-              : "Drag images here, paste with Ctrl+V, or choose files. Several screenshots of the same match get merged."}
-          </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const fs = Array.from(e.target.files ?? []);
-              if (fs.length) void handleImages(fs);
-              e.target.value = "";
-            }}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={reading}
-            onClick={() => fileRef.current?.click()}
-          >
-            {reading ? "Reading…" : "Choose screenshots"}
-          </Button>
-        </div>
+        <Dropzone
+          busy={reading}
+          busyLabel="Reading the screenshots…"
+          idle="Drag images here, paste with Ctrl+V, or choose files. Several screenshots of the same match get merged."
+          buttonLabel="Choose screenshots"
+          onFiles={(fs) => void handleImages(fs)}
+        />
       </Section>
 
 
