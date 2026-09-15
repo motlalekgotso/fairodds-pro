@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { RiskBadge, EVBadge } from "@/components/RiskBadge";
 import { useStore } from "@/lib/betting/store";
 import { analyzeMatch, bestRetail, MARKET_OF } from "@/lib/betting/analysis";
+import { lineupEdge, teamStrength } from "@/lib/betting/lineups";
 import type { Leg, MarketKey } from "@/lib/betting/types";
 
 export const Route = createFileRoute("/match/$matchId")({
@@ -235,6 +236,71 @@ function MatchView() {
           </table>
         </div>
       </div>
+
+      {match.lineups ? (
+        <div className="rounded-lg border border-edge bg-card p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wider">
+              Line-ups & team quality
+            </h2>
+            {edge ? (
+              <span className="tabular text-xs text-muted-foreground">
+                {edge.diff >= 0 ? match.home_team : match.away_team} stronger by{" "}
+                <span className="text-positive">{Math.abs(edge.pct).toFixed(1)}%</span>
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            {[match.lineups.home, match.lineups.away].map((side, idx) => {
+              const strength = teamStrength(side);
+              return (
+                <div key={idx} className="min-w-0 flex-1 rounded-md border border-edge p-4">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h3 className="truncate text-sm font-semibold">
+                      {side.team || (idx === 0 ? match.home_team : match.away_team)}
+                    </h3>
+                    {side.formation ? (
+                      <span className="text-xs text-muted-foreground">
+                        {side.formation}
+                      </span>
+                    ) : null}
+                  </div>
+                  {strength !== null ? (
+                    <p className="tabular mt-1 text-xs text-muted-foreground">
+                      Squad quality {strength.toFixed(2)}
+                    </p>
+                  ) : null}
+                  <ul className="mt-3 space-y-1 text-xs">
+                    {side.players.map((p, i) => (
+                      <li key={i} className="flex items-baseline justify-between gap-3">
+                        <span className="truncate">
+                          {p.name}
+                          {p.position ? (
+                            <span className="ml-1 text-muted-foreground">
+                              {p.position}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="tabular shrink-0 text-muted-foreground">
+                          {[
+                            p.rating !== undefined ? p.rating.toFixed(2) : null,
+                            p.goals !== undefined ? `${p.goals}G` : null,
+                            p.assists !== undefined ? `${p.assists}A` : null,
+                            p.xg !== undefined ? `${p.xg.toFixed(2)}xG` : null,
+                            p.xa !== undefined ? `${p.xa.toFixed(2)}xA` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {match.stats_notes.trim() ? (
         <div className="rounded-lg border border-edge bg-card p-5">
