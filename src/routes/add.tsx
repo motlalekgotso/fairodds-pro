@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/betting/store";
-import { importOddsFromScreenshot } from "@/lib/betting/import-odds.functions";
-import { importStatsFromScreenshot } from "@/lib/betting/import-stats.functions";
-import type { MarketKey, Match, RetailBook } from "@/lib/betting/types";
-
+import { importScreenshot } from "@/lib/betting/import-screenshot.functions";
+import { teamStrength } from "@/lib/betting/lineups";
+import type { Lineups, MarketKey, Match, RetailBook, TeamLineup } from "@/lib/betting/types";
 
 export const Route = createFileRoute("/add")({
   head: () => ({
@@ -19,12 +18,12 @@ export const Route = createFileRoute("/add")({
       {
         name: "description",
         content:
-          "Enter Pinnacle and retail book odds, opening lines and stats notes to devig a new match.",
+          "Drop any screenshots — odds, comparisons, stats or line-ups — and devig a new match.",
       },
       { property: "og:title", content: "Add Match — BetAnalyser Pro" },
       {
         property: "og:description",
-        content: "Enter sharp and retail odds to devig a new match.",
+        content: "Drop odds, stats and line-up screenshots to devig a new match.",
       },
     ],
   }),
@@ -146,6 +145,68 @@ function Dropzone({
   );
 }
 
+function mergeTeam(prev: TeamLineup | undefined, next: TeamLineup): TeamLineup {
+  if (!prev || !prev.players.length) return next;
+  if (!next.players.length) return prev;
+  const players = [...prev.players];
+  for (const p of next.players) {
+    const i = players.findIndex(
+      (x) => x.name.trim().toLowerCase() === p.name.trim().toLowerCase(),
+    );
+    if (i >= 0) players[i] = { ...p, ...players[i] };
+    else players.push(p);
+  }
+  return {
+    team: prev.team || next.team,
+    ...(prev.formation || next.formation
+      ? { formation: prev.formation || next.formation }
+      : {}),
+    players,
+  };
+}
+
+function LineupTable({ side }: { side: TeamLineup }) {
+  const strength = teamStrength(side);
+  return (
+    <div className="min-w-0 flex-1 rounded-md border border-edge p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="truncate text-sm font-semibold">{side.team || "Team"}</h3>
+        {side.formation ? (
+          <span className="text-xs text-muted-foreground">{side.formation}</span>
+        ) : null}
+      </div>
+      {strength !== null ? (
+        <p className="tabular mt-1 text-xs text-muted-foreground">
+          Squad quality {strength.toFixed(2)}
+        </p>
+      ) : null}
+      <ul className="mt-3 space-y-1 text-xs">
+        {side.players.map((p, i) => (
+          <li key={i} className="flex items-baseline justify-between gap-3">
+            <span className="truncate">
+              {p.name}
+              {p.position ? (
+                <span className="ml-1 text-muted-foreground">{p.position}</span>
+              ) : null}
+            </span>
+            <span className="tabular shrink-0 text-muted-foreground">
+              {[
+                p.rating !== undefined ? `${p.rating.toFixed(2)}` : null,
+                p.goals !== undefined ? `${p.goals}G` : null,
+                p.assists !== undefined ? `${p.assists}A` : null,
+                p.xg !== undefined ? `${p.xg.toFixed(2)}xG` : null,
+                p.xa !== undefined ? `${p.xa.toFixed(2)}xA` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "—"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function AddMatch() {
   const { addMatch } = useStore();
   const navigate = useNavigate();
@@ -160,11 +221,9 @@ function AddMatch() {
     { name: "", odds: {} },
   ]);
   const [notes, setNotes] = useState("");
+  const [lineups, setLineups] = useState<Lineups | null>(null);
   const [reading, setReading] = useState(false);
-  const [readingBooks, setReadingBooks] = useState(false);
-  const [readingStats, setReadingStats] = useState(false);
-  const runImport = useServerFn(importOddsFromScreenshot);
-  const runStats = useServerFn(importStatsFromScreenshot);
+  const runImport = useServerFn(importScreenshot);
 
   function toForm(odds: Partial<Record<MarketKey, number>>): OddsForm {
     const out: OddsForm = {};
@@ -197,7 +256,9 @@ function AddMatch() {
     });
   }
 
-  function mergeBooks(imported: { book_name: string; odds: Partial<Record<MarketKey, number>> }[]) {
+  function mergeBooks(
+    imported: { book_name: string; odds: Partial<Record<MarketKey, number>> }[],
+  ) {
     setBooks((s) => {
       const next = s.filter((b) => b.name.trim() || Object.keys(b.odds).length);
       for (const b of imported) {
@@ -216,71 +277,63 @@ function AddMatch() {
     });
   }
 
-  async function handleImages(input: File[], mode: "all" | "books" = "all") {
+  async function handleScreenshots(input: File[]) {
     const files = validImages(input);
     if (!files) return;
-    const setBusy = mode === "books" ? setReadingBooks : setReading;
-    setBusy(true);
-    let found = 0;
+    setReading(true);
+    let prices = 0;
+    let statShots = 0;
+    let lineupShots = 0;
     try {
       for (const file of files) {
         const dataUrl = await readDataUrl(file);
-        const result = await runImport({ data: { imageDataUrl: dataUrl } });
-        const extraBooks =
-          mode === "books" && Object.keys(result.pinnacle).length
-            ? [{ book_name: "Pinnacle", odds: result.pinnacle }]
-            : [];
+        const r = await runImport({ data: { imageDataUrl: dataUrl } });
 
-        if (mode === "all") {
-          if (result.home_team) setHome((v) => v || result.home_team);
-          if (result.away_team) setAway((v) => v || result.away_team);
-          if (result.league) setLeague((v) => v || result.league);
-          if (Object.keys(result.pinnacle).length) {
-            setPinnacle((s) => ({ ...toForm(result.pinnacle), ...s }));
+        if (r.home_team) setHome((v) => v || r.home_team);
+        if (r.away_team) setAway((v) => v || r.away_team);
+        if (r.league) setLeague((v) => v || r.league);
+
+        if (Object.keys(r.pinnacle).length) {
+          prices += Object.keys(r.pinnacle).length;
+          if (r.kind === "comparison") {
+            mergeBooks([{ book_name: "Pinnacle", odds: r.pinnacle }]);
+          } else {
+            setPinnacle((s) => ({ ...toForm(r.pinnacle), ...s }));
           }
-          if (result.notes) setNotes((n) => n || result.notes);
         }
 
-        const allBooks = [...result.books, ...extraBooks];
-        if (allBooks.length) mergeBooks(allBooks);
+        if (r.books.length) {
+          prices += r.books.reduce((a, b) => a + Object.keys(b.odds).length, 0);
+          mergeBooks(r.books);
+        }
 
-        found +=
-          (mode === "all" ? Object.keys(result.pinnacle).length : 0) +
-          allBooks.reduce((a, b) => a + Object.keys(b.odds).length, 0);
+        if (r.notes) {
+          statShots += 1;
+          setNotes((n) => (n.includes(r.notes) ? n : [n.trim(), r.notes].filter(Boolean).join("\n\n")));
+        }
+
+        if (r.lineups) {
+          lineupShots += 1;
+          const incoming = r.lineups;
+          setLineups((s) => ({
+            home: mergeTeam(s?.home, incoming.home),
+            away: mergeTeam(s?.away, incoming.away),
+          }));
+        }
       }
-      if (found === 0) {
-        toast.error("No odds were readable in those screenshots");
-      } else {
-        toast.success(`Read ${found} prices — check them before analysing`);
-      }
+
+      const parts = [
+        prices ? `${prices} prices` : null,
+        statShots ? `${statShots} stats screenshot${statShots > 1 ? "s" : ""}` : null,
+        lineupShots ? `${lineupShots} line-up${lineupShots > 1 ? "s" : ""}` : null,
+      ].filter(Boolean);
+
+      if (!parts.length) toast.error("Nothing readable was found in those screenshots");
+      else toast.success(`Read ${parts.join(", ")} — check them before analysing`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not read that screenshot");
     } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleStatsImages(input: File[]) {
-    const files = validImages(input);
-    if (!files) return;
-    setReadingStats(true);
-    const chunks: string[] = [];
-    try {
-      for (const file of files) {
-        const dataUrl = await readDataUrl(file);
-        const result = await runStats({ data: { imageDataUrl: dataUrl } });
-        if (result.notes) chunks.push(result.notes);
-      }
-      if (!chunks.length) {
-        toast.error("No stats were readable in those screenshots");
-        return;
-      }
-      setNotes((n) => [n.trim(), ...chunks].filter(Boolean).join("\n\n"));
-      toast.success("Stats added to your notes — check them before analysing");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not read that screenshot");
-    } finally {
-      setReadingStats(false);
+      setReading(false);
     }
   }
 
@@ -290,14 +343,12 @@ function AddMatch() {
         .filter((i) => i.type.startsWith("image/"))
         .map((i) => i.getAsFile())
         .filter((f): f is File => !!f);
-      if (files.length) void handleImages(files);
+      if (files.length) void handleScreenshots(files);
     }
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -324,6 +375,7 @@ function AddMatch() {
       opening_odds: toNumbers(opening),
       retail_odds,
       stats_notes: notes,
+      lineups,
       created_at: new Date().toISOString(),
     };
     addMatch(match);
@@ -342,19 +394,17 @@ function AddMatch() {
       </div>
 
       <Section
-        title="Import from screenshots"
-        hint="Drop one or more screenshots of an odds page — teams and prices are filled in for you to check."
+        title="Screenshots"
+        hint="Drop everything here — sharp odds, comparison tables, FBref stats and line-ups. Each image is sorted into the right section below."
       >
         <Dropzone
           busy={reading}
-          busyLabel="Reading the screenshots…"
-          idle="Drag images here, paste with Ctrl+V, or choose files. Several screenshots of the same match get merged."
+          busyLabel="Reading and sorting the screenshots…"
+          idle="Drag images here, paste with Ctrl+V, or choose files. Odds, stats and line-up screenshots can all go in together."
           buttonLabel="Choose screenshots"
-          onFiles={(fs) => void handleImages(fs)}
+          onFiles={(fs) => void handleScreenshots(fs)}
         />
       </Section>
-
-
 
       <Section title="Fixture">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -400,13 +450,6 @@ function AddMatch() {
 
       <Section title="Retail books" hint="Where you'd actually place the bet.">
         <div className="space-y-5">
-          <Dropzone
-            busy={readingBooks}
-            busyLabel="Reading the comparison screenshots…"
-            idle="Drop odds-comparison screenshots here to fill the book rows below."
-            buttonLabel="Choose comparison screenshots"
-            onFiles={(fs) => void handleImages(fs, "books")}
-          />
           {books.map((b, i) => (
             <div key={i} className="space-y-3 border-l-2 border-edge pl-4">
               <div className="flex items-end gap-3">
@@ -453,24 +496,36 @@ function AddMatch() {
       </Section>
 
       <Section
+        title="Line-ups & player quality"
+        hint="Read from line-up or FBref player screenshots — used to compare squad quality."
+      >
+        {lineups ? (
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <LineupTable side={lineups.home} />
+              <LineupTable side={lineups.away} />
+            </div>
+            <Button type="button" variant="ghost" onClick={() => setLineups(null)}>
+              Clear line-ups
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No line-ups read yet — drop a starting XI or FBref player table above.
+          </p>
+        )}
+      </Section>
+
+      <Section
         title="Stats notes"
         hint="Form, injuries, head-to-head. Leaving this empty raises the risk score."
       >
-        <div className="space-y-4">
-          <Dropzone
-            busy={readingStats}
-            busyLabel="Reading the stats screenshots…"
-            idle="Drop form, xG, head-to-head or injury screenshots here and they'll be summarised into your notes."
-            buttonLabel="Choose stats screenshots"
-            onFiles={(fs) => void handleStatsImages(fs)}
-          />
-          <Textarea
-            rows={6}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Paste form / xG / injury notes from FBref or Understat…"
-          />
-        </div>
+        <Textarea
+          rows={6}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Paste form / xG / injury notes from FBref or Understat…"
+        />
       </Section>
 
       <Button type="submit" size="lg">
