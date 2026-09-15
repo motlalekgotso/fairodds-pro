@@ -38,6 +38,7 @@ function MatchView() {
     () => (match ? analyzeMatch(match, slip) : null),
     [match, slip],
   );
+  const edge = lineupEdge(match?.lineups);
 
   if (!match || !analysis) {
     return (
