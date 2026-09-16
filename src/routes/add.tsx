@@ -34,10 +34,19 @@ const ODDS_FIELDS: { key: MarketKey; label: string }[] = [
   { key: "home_win", label: "Home" },
   { key: "draw", label: "Draw" },
   { key: "away_win", label: "Away" },
+  { key: "dc_1x", label: "1X" },
+  { key: "dc_12", label: "12" },
+  { key: "dc_x2", label: "X2" },
+  { key: "dnb_home", label: "DNB Home" },
+  { key: "dnb_away", label: "DNB Away" },
   { key: "btts_yes", label: "BTTS Yes" },
   { key: "btts_no", label: "BTTS No" },
+  { key: "over_1_5", label: "Over 1.5" },
+  { key: "under_1_5", label: "Under 1.5" },
   { key: "over_2_5", label: "Over 2.5" },
   { key: "under_2_5", label: "Under 2.5" },
+  { key: "over_3_5", label: "Over 3.5" },
+  { key: "under_3_5", label: "Under 3.5" },
 ];
 
 type OddsForm = Partial<Record<MarketKey, string>>;

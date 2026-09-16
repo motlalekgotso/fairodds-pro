@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { RiskBadge, EVBadge } from "@/components/RiskBadge";
 import { useStore } from "@/lib/betting/store";
-import { analyzeMatch, bestRetail, MARKET_OF } from "@/lib/betting/analysis";
+import { analyzeMatch, bestRetail, MARKET_OF, selectionLabel } from "@/lib/betting/analysis";
 import { lineupEdge, teamStrength } from "@/lib/betting/lineups";
 import type { Leg, MarketKey } from "@/lib/betting/types";
 
@@ -194,8 +194,12 @@ function MatchView() {
 
       <div className="rounded-lg border border-edge bg-card p-5">
         <h2 className="text-sm font-semibold uppercase tracking-wider">
-          Fair probabilities
+          All markets — safest to longest
         </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Every market the odds cover, including double chance and draw no bet derived
+          from the sharp 1X2 book.
+        </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -204,39 +208,57 @@ function MatchView() {
                 <th className="pb-2 pr-4 font-medium">Fair %</th>
                 <th className="pb-2 pr-4 font-medium">Fair odds</th>
                 <th className="pb-2 pr-4 font-medium">Best retail</th>
-                <th className="pb-2 font-medium">EV</th>
+                <th className="pb-2 pr-4 font-medium">EV</th>
+                <th className="pb-2 font-medium sr-only">Add</th>
               </tr>
             </thead>
             <tbody>
-              {(Object.keys(analysis.fair_probabilities) as MarketKey[]).map((k) => {
-                const p = analysis.fair_probabilities[k] as number;
-                const retail = bestRetail(match, k);
-                const ev = retail ? (p * retail.odds - 1) * 100 : null;
-                return (
-                  <tr key={k} className="border-b border-edge/60 last:border-0">
-                    <td className="py-2 pr-4">
-                      {k.replace(/_/g, " ")}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {MARKET_OF[k]}
-                      </span>
-                    </td>
-                    <td className="tabular py-2 pr-4">{(p * 100).toFixed(1)}%</td>
-                    <td className="tabular py-2 pr-4">{(1 / p).toFixed(2)}</td>
-                    <td className="tabular py-2 pr-4">
-                      {retail ? `${retail.odds.toFixed(2)} · ${retail.book}` : "—"}
-                    </td>
-                    <td
-                      className={`tabular py-2 ${ev !== null && ev > 2 ? "text-positive" : "text-muted-foreground"}`}
-                    >
-                      {ev === null ? "—" : `${ev > 0 ? "+" : ""}${ev.toFixed(2)}%`}
-                    </td>
-                  </tr>
-                );
-              })}
+              {(Object.keys(analysis.fair_probabilities) as MarketKey[])
+                .sort(
+                  (a, b) =>
+                    (analysis.fair_probabilities[b] as number) -
+                    (analysis.fair_probabilities[a] as number),
+                )
+                .map((k) => {
+                  const p = analysis.fair_probabilities[k] as number;
+                  const retail = bestRetail(match, k);
+                  const ev = retail ? (p * retail.odds - 1) * 100 : null;
+                  return (
+                    <tr key={k} className="border-b border-edge/60 last:border-0">
+                      <td className="py-2 pr-4">
+                        {selectionLabel(k, match)}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {MARKET_OF[k]}
+                        </span>
+                      </td>
+                      <td className="tabular py-2 pr-4">{(p * 100).toFixed(1)}%</td>
+                      <td className="tabular py-2 pr-4">{(1 / p).toFixed(2)}</td>
+                      <td className="tabular py-2 pr-4">
+                        {retail ? `${retail.odds.toFixed(2)} · ${retail.book}` : "—"}
+                      </td>
+                      <td
+                        className={`tabular py-2 pr-4 ${ev !== null && ev > 2 ? "text-positive" : "text-muted-foreground"}`}
+                      >
+                        {ev === null ? "—" : `${ev > 0 ? "+" : ""}${ev.toFixed(2)}%`}
+                      </td>
+                      <td className="py-2 text-right">
+                        <Button
+                          size="sm"
+                          variant={inSlip(k) ? "secondary" : "ghost"}
+                          disabled={inSlip(k)}
+                          onClick={() => add(k, selectionLabel(k, match), p)}
+                        >
+                          {inSlip(k) ? "Added" : "Add"}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
       </div>
+
 
       {match.lineups ? (
         <div className="rounded-lg border border-edge bg-card p-5">

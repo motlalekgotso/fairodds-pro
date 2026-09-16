@@ -10,10 +10,19 @@ const MARKETS: MarketKey[] = [
   "home_win",
   "draw",
   "away_win",
+  "dc_1x",
+  "dc_12",
+  "dc_x2",
+  "dnb_home",
+  "dnb_away",
   "btts_yes",
   "btts_no",
+  "over_1_5",
+  "under_1_5",
   "over_2_5",
   "under_2_5",
+  "over_3_5",
+  "under_3_5",
 ];
 
 export interface ImportedBook {
@@ -44,7 +53,14 @@ First classify the screenshot with "kind":
 - "other": anything else.
 
 Odds: decimal only (convert fractional/American). Market keys: home_win, draw, away_win (1X2),
-btts_yes, btts_no, over_2_5, under_2_5. A column named Pinnacle goes into "pinnacle"; other
+dc_1x, dc_12, dc_x2 (double chance: home-or-draw, home-or-away, draw-or-away),
+dnb_home, dnb_away (draw no bet), btts_yes, btts_no,
+over_1_5, under_1_5, over_2_5, under_2_5, over_3_5, under_3_5 (total goals).
+Read EVERY market visible in the image, not just the match result. Bookmaker wording varies:
+"1X"/"Home or Draw" = dc_1x, "12"/"Home or Away" = dc_12, "X2"/"Draw or Away" = dc_x2,
+"Draw No Bet"/"DNB" = dnb_home/dnb_away, "Both Teams To Score" = btts_yes/btts_no,
+"Total Goals Over/Under" at the matching line = over_/under_ keys. Ignore markets with no key above.
+A column named Pinnacle goes into "pinnacle"; other
 bookmakers go into "books". If a single unlabelled set of prices is shown, treat it as "pinnacle".
 
 Stats: put a concise plain-text bullet summary of any visible statistics into "notes"
