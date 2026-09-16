@@ -2,10 +2,19 @@ export type MarketKey =
   | "home_win"
   | "draw"
   | "away_win"
+  | "dc_1x"
+  | "dc_12"
+  | "dc_x2"
+  | "dnb_home"
+  | "dnb_away"
   | "btts_yes"
   | "btts_no"
+  | "over_1_5"
+  | "under_1_5"
   | "over_2_5"
-  | "under_2_5";
+  | "under_2_5"
+  | "over_3_5"
+  | "under_3_5";
 
 export type OddsSet = Record<MarketKey, number>;
 
