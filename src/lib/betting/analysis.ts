@@ -10,35 +10,66 @@ import type {
 export const MARKET_GROUPS: { name: string; keys: MarketKey[] }[] = [
   { name: "1X2", keys: ["home_win", "draw", "away_win"] },
   { name: "BTTS", keys: ["btts_yes", "btts_no"] },
+  { name: "Total 1.5", keys: ["over_1_5", "under_1_5"] },
   { name: "Total 2.5", keys: ["over_2_5", "under_2_5"] },
+  { name: "Total 3.5", keys: ["over_3_5", "under_3_5"] },
 ];
 
 export const MARKET_OF: Record<MarketKey, string> = {
   home_win: "1X2",
   draw: "1X2",
   away_win: "1X2",
+  dc_1x: "Double chance",
+  dc_12: "Double chance",
+  dc_x2: "Double chance",
+  dnb_home: "Draw no bet",
+  dnb_away: "Draw no bet",
   btts_yes: "BTTS",
   btts_no: "BTTS",
+  over_1_5: "Total 1.5",
+  under_1_5: "Total 1.5",
   over_2_5: "Total 2.5",
   under_2_5: "Total 2.5",
+  over_3_5: "Total 3.5",
+  under_3_5: "Total 3.5",
 };
 
 export function selectionLabel(key: MarketKey, match?: Match): string {
+  const home = match?.home_team || "Home";
+  const away = match?.away_team || "Away";
   switch (key) {
     case "home_win":
-      return match ? `${match.home_team} win` : "Home win";
+      return `${home} win`;
     case "draw":
       return "Draw";
     case "away_win":
-      return match ? `${match.away_team} win` : "Away win";
+      return `${away} win`;
+    case "dc_1x":
+      return `${home} or draw`;
+    case "dc_12":
+      return `${home} or ${away}`;
+    case "dc_x2":
+      return `Draw or ${away}`;
+    case "dnb_home":
+      return `${home} draw no bet`;
+    case "dnb_away":
+      return `${away} draw no bet`;
     case "btts_yes":
       return "BTTS Yes";
     case "btts_no":
       return "BTTS No";
+    case "over_1_5":
+      return "Over 1.5";
+    case "under_1_5":
+      return "Under 1.5";
     case "over_2_5":
       return "Over 2.5";
     case "under_2_5":
       return "Under 2.5";
+    case "over_3_5":
+      return "Over 3.5";
+    case "under_3_5":
+      return "Under 3.5";
   }
 }
 
@@ -54,6 +85,21 @@ export function devig(odds: Partial<Record<MarketKey, number>>) {
       fair[k] = (implied[i] as number) / overround;
     });
   }
+
+  // Derived markets: double chance and draw no bet follow from the fair 1X2 book.
+  const h = fair.home_win;
+  const d = fair.draw;
+  const a = fair.away_win;
+  if (h !== undefined && d !== undefined && a !== undefined) {
+    fair.dc_1x = h + d;
+    fair.dc_12 = h + a;
+    fair.dc_x2 = d + a;
+    if (h + a > 0) {
+      fair.dnb_home = h / (h + a);
+      fair.dnb_away = a / (h + a);
+    }
+  }
+
   return fair;
 }
 
@@ -63,15 +109,32 @@ export function evPercent(fairProb: number, retailOdds: number) {
   return (fairProb * retailOdds - 1) * 100;
 }
 
-const CORRELATED: [MarketKey, MarketKey][] = [
-  ["btts_yes", "over_2_5"],
-  ["btts_no", "under_2_5"],
-];
+/** Outcome families — any two selections in the same family overlap. */
+const FAMILY: Record<MarketKey, "result" | "goals" | "btts"> = {
+  home_win: "result",
+  draw: "result",
+  away_win: "result",
+  dc_1x: "result",
+  dc_12: "result",
+  dc_x2: "result",
+  dnb_home: "result",
+  dnb_away: "result",
+  btts_yes: "btts",
+  btts_no: "btts",
+  over_1_5: "goals",
+  under_1_5: "goals",
+  over_2_5: "goals",
+  under_2_5: "goals",
+  over_3_5: "goals",
+  under_3_5: "goals",
+};
 
 export function isCorrelated(a: MarketKey, b: MarketKey) {
-  if (MARKET_OF[a] === MARKET_OF[b]) return true;
-  return CORRELATED.some(
-    ([x, y]) => (x === a && y === b) || (x === b && y === a),
+  if (FAMILY[a] === FAMILY[b]) return true;
+  // Goals totals and BTTS move together.
+  return (
+    (FAMILY[a] === "btts" && FAMILY[b] === "goals") ||
+    (FAMILY[a] === "goals" && FAMILY[b] === "btts")
   );
 }
 
