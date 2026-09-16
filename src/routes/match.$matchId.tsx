@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { RiskBadge, EVBadge } from "@/components/RiskBadge";
 import { useStore } from "@/lib/betting/store";
-import { analyzeMatch, bestRetail, MARKET_OF } from "@/lib/betting/analysis";
+import { analyzeMatch, bestRetail, MARKET_OF, selectionLabel } from "@/lib/betting/analysis";
 import { lineupEdge, teamStrength } from "@/lib/betting/lineups";
 import type { Leg, MarketKey } from "@/lib/betting/types";
 
