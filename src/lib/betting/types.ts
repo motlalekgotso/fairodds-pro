@@ -94,6 +94,12 @@ export interface Leg {
   odds: number;
   book: string;
   risk_score: number;
+  home_team?: string;
+  away_team?: string;
+  kickoff_time?: string;
+  /** Filled in by the live results check. */
+  result?: "won" | "lost" | "pending";
+  final_score?: string;
 }
 
 export interface Ticket {
@@ -105,4 +111,5 @@ export interface Ticket {
   status: "pending" | "won" | "lost";
   stake: number;
   payout: number;
+  checked_at?: string;
 }

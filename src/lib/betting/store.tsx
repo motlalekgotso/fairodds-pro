@@ -17,9 +17,21 @@ interface State {
   slip: Leg[];
   tickets: Ticket[];
   highProbMode: boolean;
+  bankroll: number;
 }
 
-const empty: State = { matches: [], slip: [], tickets: [], highProbMode: false };
+const empty: State = {
+  matches: [],
+  slip: [],
+  tickets: [],
+  highProbMode: false,
+  bankroll: 0,
+};
+
+export interface LegSettlement {
+  result: "won" | "lost" | "pending";
+  score?: string;
+}
 
 interface Ctx extends State {
   hydrated: boolean;
@@ -31,6 +43,8 @@ interface Ctx extends State {
   finalizeTicket: (stake: number) => void;
   setTicketStatus: (id: string, status: Ticket["status"]) => void;
   setHighProbMode: (v: boolean) => void;
+  setBankroll: (v: number) => void;
+  applyLegResults: (updates: Record<string, LegSettlement>) => void;
 }
 
 const StoreContext = createContext<Ctx | null>(null);
@@ -116,6 +130,34 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const setBankroll = useCallback(
+    (v: number) => setState((s) => ({ ...s, bankroll: v })),
+    [],
+  );
+
+  const applyLegResults = useCallback((updates: Record<string, LegSettlement>) => {
+    setState((s) => ({
+      ...s,
+      tickets: s.tickets.map((t) => {
+        if (!t.legs.some((l) => updates[l.id])) return t;
+        const legs = t.legs.map((l) => {
+          const u = updates[l.id];
+          return u ? { ...l, result: u.result, final_score: u.score ?? l.final_score } : l;
+        });
+        const anyLost = legs.some((l) => l.result === "lost");
+        const allWon = legs.every((l) => l.result === "won");
+        const status: Ticket["status"] = anyLost ? "lost" : allWon ? "won" : "pending";
+        return {
+          ...t,
+          legs,
+          status,
+          payout: status === "won" ? t.stake * t.combined_odds : 0,
+          checked_at: new Date().toISOString(),
+        };
+      }),
+    }));
+  }, []);
+
   const value = useMemo<Ctx>(
     () => ({
       ...state,
@@ -128,6 +170,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       finalizeTicket,
       setTicketStatus,
       setHighProbMode,
+      setBankroll,
+      applyLegResults,
     }),
     [
       state,
@@ -140,6 +184,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       finalizeTicket,
       setTicketStatus,
       setHighProbMode,
+      setBankroll,
+      applyLegResults,
     ],
   );
 
