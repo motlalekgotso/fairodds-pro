@@ -17,9 +17,21 @@ interface State {
   slip: Leg[];
   tickets: Ticket[];
   highProbMode: boolean;
+  bankroll: number;
 }
 
-const empty: State = { matches: [], slip: [], tickets: [], highProbMode: false };
+const empty: State = {
+  matches: [],
+  slip: [],
+  tickets: [],
+  highProbMode: false,
+  bankroll: 0,
+};
+
+export interface LegSettlement {
+  result: "won" | "lost" | "pending";
+  score?: string;
+}
 
 interface Ctx extends State {
   hydrated: boolean;
@@ -31,6 +43,8 @@ interface Ctx extends State {
   finalizeTicket: (stake: number) => void;
   setTicketStatus: (id: string, status: Ticket["status"]) => void;
   setHighProbMode: (v: boolean) => void;
+  setBankroll: (v: number) => void;
+  applyLegResults: (updates: Record<string, LegSettlement>) => void;
 }
 
 const StoreContext = createContext<Ctx | null>(null);
