@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 const nav = [
   { to: "/", label: "Dashboard" },
   { to: "/add", label: "Add Match" },
+  { to: "/slip", label: "Final Slip" },
   { to: "/ticket", label: "Banker Ticket" },
   { to: "/ledger", label: "Ledger" },
 ] as const;

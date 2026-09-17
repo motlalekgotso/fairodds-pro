@@ -65,6 +65,9 @@ function MatchView() {
       odds: retail?.odds ?? 1 / probability,
       book: retail?.book ?? "Fair price",
       risk_score: analysis!.risk_score,
+      home_team: match.home_team,
+      away_team: match.away_team,
+      kickoff_time: match.kickoff_time,
     };
     addLeg(leg);
     toast.success(`${selection} added to banker ticket`);
