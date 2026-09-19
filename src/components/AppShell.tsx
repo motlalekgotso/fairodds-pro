@@ -1,53 +1,40 @@
-import { Link } from "@tanstack/react-router";
-import { Switch } from "@/components/ui/switch";
-import { useStore } from "@/lib/betting/store";
-import type { ReactNode } from "react";
+import { Link } from "@tanstack/react-router"
 
 const nav = [
   { to: "/", label: "Dashboard" },
-  { to: "/add", label: "Add Match" },
-  { to: "/slip", label: "Final Slip" },
+  { to: "/value", label: "Value Bets" },
   { to: "/ticket", label: "Banker Ticket" },
   { to: "/ledger", label: "Ledger" },
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
-  const { highProbMode, setHighProbMode, slip } = useStore();
-
+export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-edge bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-          <Link to="/" className="flex items-baseline gap-2">
-            <span className="text-base font-bold tracking-tight">BetAnalyser</span>
-            <span className="tabular rounded border border-positive/40 bg-positive/12 px-1.5 text-[10px] font-bold uppercase text-positive">
-              Pro
-            </span>
+    <div className="min-h-screen bg-[#05070A] text-white">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0A0E1A]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-lg bg-[#0A0E1A] border-2 border-[#FFD600] flex items-center justify-center font-black text-[#FFD600] text-xs">FA</div>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-white text-sm">FairOdds Academy</span>
+              <span className="text-[7px] text-[#FFD600] tracking-widest uppercase">Worlds First Betting Academy</span>
+            </div>
           </Link>
-          <nav className="flex items-center gap-1 text-sm">
+          <nav className="flex items-center gap-2">
             {nav.map((n) => (
               <Link
                 key={n.to}
                 to={n.to}
-                className="rounded px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                className="rounded px-2.5 py-1.5 text-sm text-white/70 hover:text-white"
                 activeOptions={{ exact: n.to === "/" }}
-                activeProps={{ className: "bg-secondary text-foreground" }}
+                activeProps={{ className: "bg-white/10 text-white rounded px-2.5 py-1.5 text-sm" }}
               >
                 {n.label}
-                {n.to === "/ticket" && slip.length > 0 ? (
-                  <span className="tabular ml-1.5 text-positive">{slip.length}</span>
-                ) : null}
               </Link>
             ))}
           </nav>
-          <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden sm:inline">High-probability mode</span>
-            <span className="sm:hidden">High-prob</span>
-            <Switch checked={highProbMode} onCheckedChange={setHighProbMode} />
-          </label>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );
 }
