@@ -1,6 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router"
+import type { ReactNode } from "react"
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
   const pathname = loc.pathname
 
@@ -13,7 +14,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#050A14", color: "#fff" }}>
-      <header style={{ position: "sticky", top: 0, zIndex: 10, background: "#050A14", borderBottom: "1px solid rgba(255,255,255,0.1)", padding: "12px" }}>
+      <header style={{ position: "sticky", top: 0, zIndex: 10, background: "#050A14", borderBottom: "1px solid rgba(255,255,255,0.1)", padding: 12 }}>
         <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Link to="/" style={{ color: "#fff", textDecoration: "none", display: "flex", gap: 8, alignItems: "center" }}>
             <div style={{ width: 32, height: 32, background: "#FFD60A", color: "#000", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>F</div>
@@ -57,3 +58,5 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+
+export default AppShell
