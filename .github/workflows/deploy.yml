@@ -1,3 +1,4 @@
+
 name: Deploy to Pages
 on:
   push:
@@ -7,6 +8,9 @@ permissions:
   contents: read
   pages: write
   id-token: write
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,9 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: actions/configure-pages@v5
       - run: npm install
       - run: npm run build
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
