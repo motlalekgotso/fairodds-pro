@@ -24,7 +24,7 @@ export const importScreenshotsFn = createServerFn({ method: "POST" })
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gemini-2.5-flash",
+          model: "gemini-2.0-flash",
           messages: [
             {
               role: "user",
