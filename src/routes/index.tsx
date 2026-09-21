@@ -1,47 +1,38 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { scanMarketFn } from "@/lib/academy/scan-market.function";
+import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
 
 export const Route = createFileRoute("/")({
-  component: AcademyPage,
-  head: () => ({
-    meta: [
-      { title: "FairOdds Academy - Global Business Education" },
-      { name: "description", content: "Education only - Market analysis training academy. No real money." },
-      { property: "og:title", content: "FairOdds Academy" },
-      { property: "og:description", content: "Global business education platform - Education only" },
-    ],
-  }),
-});
+  component: Home,
+})
 
-function AcademyPage() {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+function Home() {
+  const [files, setFiles] = useState<FileList | null>(null)
+  const [result, setResult] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
 
-  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []) as File[];
-    if (!files.length) return;
-    const b64 = await Promise.all(files.map(f => new Promise<string>(r => {
-      const fr = new FileReader(); fr.onload = () => r(fr.result as string); fr.readAsDataURL(f);
-    })));
-    setLoading(true);
+  async function scan() {
+    if(!files) return
+    setLoading(true)
+    const fd = new FormData()
+    Array.from(files).forEach(f => fd.append("screenshots", f))
     try {
-      const data = await scanMarketFn({ data: { images: b64 } });
-      setResult(data);
-    } catch (err: any) { alert(err.message); }
-    setLoading(false);
-  };
+      const r = await fetch("/api/academy/scan-market", { method: "POST", body: fd })
+      setResult(await r.json())
+    } catch(e:any) {
+      setResult({ error: e.message })
+    }
+    setLoading(false)
+  }
 
   return (
-    <div style={{ background: "#0A0E1A", minHeight: "100vh", color: "#fff", padding: 24 }}>
-      <h1 style={{ color: "#FFD600" }}>FairOdds Academy</h1>
-      <p style={{ opacity: 0.6 }}>Education Only • No Real Money • Global Business Academy</p>
-      <div style={{ background: "#141A2A", padding: 20, borderRadius: 16, marginTop: 20 }}>
-        <h3>Upload Market Screenshots Together</h3>
-        <input type="file" multiple accept="image/*" onChange={upload} />
-        {loading && <p style={{ color: "#FFD600" }}>🔍 Scanning all together...</p>}
-        {result && <pre style={{ background: "#000", padding: 12, fontSize: 11, overflow: "auto" }}>{JSON.stringify(result, null, 2)}</pre>}
-      </div>
+    <div style={{ padding: 24, background: "#0a0a0a", color: "white", minHeight: "100vh", fontFamily: "system-ui" }}>
+      <h1 style={{ fontSize: 26, fontWeight: 800 }}>FairOdds Academy</h1>
+      <p style={{ opacity: 0.6, marginTop: 6 }}>Educational Market Fair Value Scanner</p>
+      <input type="file" multiple accept="image/*" onChange={e => setFiles(e.target.files)} style={{ marginTop: 20, display: "block" }} />
+      <button onClick={scan} disabled={loading} style={{ marginTop: 14, padding: "10px 18px", background: "white", color: "black", borderRadius: 8, fontWeight: 700 }}>
+        {loading ? "Analyzing..." : "Scan Screenshots"}
+      </button>
+      {result && <pre style={{ marginTop: 20, background: "#18181b", padding: 12, borderRadius: 8, fontSize: 11, overflow: "auto" }}>{JSON.stringify(result, null, 2)}</pre>}
     </div>
-  );
+  )
 }
